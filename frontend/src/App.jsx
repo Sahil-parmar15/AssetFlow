@@ -1,6 +1,7 @@
 import React, { useState, useContext } from 'react';
 import { AppContext, AppProvider } from './context/AppContext';
 import Sidebar from './components/Sidebar';
+import Logo from './components/Logo';
 import RoleSwitcher from './components/RoleSwitcher';
 import LoginScreen from './screens/LoginScreen';
 import DashboardScreen from './screens/DashboardScreen';
@@ -73,16 +74,17 @@ function AppContent() {
           zIndex: 100
         }}>
           {/* System Indicators */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginRight: 'auto' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginRight: 'auto' }}>
+            <Logo size={22} />
             <span style={{
-              width: '8px',
-              height: '8px',
+              width: '6px',
+              height: '6px',
               borderRadius: '50%',
               background: '#10b981',
-              boxShadow: '0 0 8px #10b981'
+              boxShadow: '0 0 6px #10b981'
             }} />
             <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              AssetFlow Node Active
+              AssetFlow Active
             </span>
           </div>
 

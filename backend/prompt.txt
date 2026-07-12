@@ -1,0 +1,94 @@
+H1 - AUTH
+I'm building the backend for AssetFlow, an asset management ERP, using FastAPI + Supabase + JWT (python-jose, passlib for hashing).
+Build:
+1. Supabase models: User (id, name, email, hashed_password, department_id, role [Employee/DepartmentHead/AssetManager/Admin], status), Department (id, name, parent_department_id nullable, head_id nullable, status)
+2. Pydantic schemas for signup/login/response (never expose hashed_password)
+3. POST /auth/signup — creates a User with role="Employee" ONLY, no role selection allowed from the request body even if sent
+4. POST /auth/login — verify password, return JWT access token
+5. A get_current_user dependency that verifies the JWT and loads the user, for use in later protected routes
+6. main.py wiring it all together, CORS enabled for http://localhost:5173
+
+Give me the full file structure and code, split into separate files (models.py, schemas.py, auth.py, database.py, main.py). Keep it minimal but production-shaped.
+
+
+H2 - Org Setup
+Continuing the AssetFlow FastAPI backend (existing models: User, Department; existing auth with get_current_user dependency and role field on User).
+Add:
+1. AssetCategory model (id, name, custom_fields as JSON column for things like warranty_period)
+2. CRUD endpoints for Department (create/edit/deactivate) — restrict to role="Admin" using a dependency that checks current_user.role
+3. CRUD endpoints for AssetCategory — Admin only
+4. GET /employees — list all users with filters by department/status
+5. PATCH /employees/{id}/role — Admin-only endpoint to promote a user to "DepartmentHead" or "AssetManager"; reject if the requester isn't Admin
+
+Return full code for new/changed files only. Follow the same file structure as before.
+
+H3 - Assest Registation
+Continuing the AssetFlow FastAPI backend.
+Add an Asset model: id, name, category_id (FK), asset_tag (auto-generated like AF-0001, sequential), serial_number, acquisition_date, acquisition_cost, condition, location, is_shared_bookable (bool), status (enum: Available, Allocated, Reserved, UnderMaintenance, Lost, Retired, Disposed), photo_url nullable.
+Add:
+1. POST /assets — register asset, auto-generate asset_tag, default status=Available. Restrict to role in ["AssetManager","Admin"]
+2. GET /assets — search/filter by asset_tag, serial_number, category_id, status, department, location (all optional query params)
+3. GET /assets/{id} — asset detail including a placeholder for allocation_history and maintenance_history (empty lists for now, we'll fill these in later hours)
+
+Return full code for new/changed files only.
+
+
+H4 - Allocation and transfer
+Continuing the AssetFlow FastAPI backend. Asset model already has a status field.
+Add an Allocation model: id, asset_id, employee_id nullable, department_id nullable, allocated_at, expected_return_date nullable, returned_at nullable, condition_notes nullable, status (enum: Active, Returned).
+Add a TransferRequest model: id, asset_id, requested_by, requested_to, status (Requested/Approved/Rejected), created_at.
+
+Endpoints:
+1. POST /assets/{id}/allocate — if the asset already has an Active allocation, return 409 with the current holder's name in the error body instead of allocating; otherwise create the allocation and set asset.status = Allocated
+2. POST /assets/{id}/transfer-request — create a TransferRequest (used when allocation was blocked)
+3. POST /transfer-requests/{id}/approve — only role in ["AssetManager","DepartmentHead"]; closes old allocation, creates new Allocation for requested_to, updates asset status stays Allocated
+4. POST /allocations/{id}/return — mark returned_at=now, condition_notes, set asset.status = Available
+5. GET /allocations/overdue — allocations where expected_return_date < today and returned_at is null
+
+Return full code for new/changed files only, and explain the 409 conflict response shape clearly since the frontend needs to show "currently held by X".
+
+
+H5 - Resourse Booking
+Continuing the AssetFlow FastAPI backend.
+Add a Booking model: id, asset_id (must reference an asset where is_shared_bookable=true), booked_by, start_time, end_time, status (Upcoming/Ongoing/Completed/Cancelled).
+
+Endpoints:
+1. POST /bookings — validate no overlap exists for the same asset_id: reject if existing.start_time < new.end_time AND existing.end_time > new.start_time for any non-cancelled booking on that asset. Return 409 with the conflicting booking's time range on failure.
+2. GET /bookings?asset_id=X — list bookings for a resource, for calendar display
+3. POST /bookings/{id}/cancel
+4. A background-safe way to compute current status (Upcoming/Ongoing/Completed) based on now() vs start/end — either a scheduled job or compute-on-read, your choice, explain which you pick and why given hackathon time constraints
+
+Return full code for new/changed files only. Include example curl requests demonstrating the overlap rejection with the exact example from our spec: booked 9:00–10:00, a request for 9:30–10:30 should be rejected, a request for 10:00–11:00 should succeed.
+
+
+H6 - Maintenance
+Continuing the AssetFlow FastAPI backend.
+Add a MaintenanceRequest model: id, asset_id, raised_by, issue_description, priority (Low/Medium/High), photo_url nullable, status (Pending/Approved/Rejected/TechnicianAssigned/InProgress/Resolved), technician_name nullable, created_at, resolved_at nullable.
+
+Endpoints:
+1. POST /maintenance-requests — any authenticated user, status starts Pending
+2. POST /maintenance-requests/{id}/approve — role="AssetManager" only; sets status=Approved AND sets the related asset.status = UnderMaintenance
+3. POST /maintenance-requests/{id}/reject — role="AssetManager", with a rejection_reason field
+4. PATCH /maintenance-requests/{id}/assign-technician
+5. POST /maintenance-requests/{id}/resolve — sets status=Resolved, resolved_at=now, AND sets asset.status back to Available
+6. GET /assets/{id}/maintenance-history
+
+Return full code for new/changed files only.
+
+
+
+H7 - Dashboard and Activity Logs
+Continuing the AssetFlow FastAPI backend.
+Add an ActivityLog model: id, user_id, action (e.g. "Asset Allocated", "Maintenance Approved"), details (text), created_at. Write a small reusable log_activity() helper and call it from the allocation, transfer, booking, and maintenance endpoints we already built (show me exactly which lines to add it to, don't rewrite whole files unless necessary).
+
+Add:
+1. GET /dashboard/kpis — return counts: assets_available, assets_allocated, maintenance_today, active_bookings, pending_transfers, upcoming_returns (next 7 days), overdue_returns (separate from upcoming)
+2. GET /activity-log — paginated list, most recent first, optionally filter by user_id
+
+Return the new/changed code, plus a short diff-style note on where log_activity() calls get inserted in existing files.
+
+
+
+H8 - Seed and polish
+Write a Python seed script for the AssetFlow FastAPI backend that creates: 1 Admin, 2 Asset Managers, 2 Department Heads, 6 Employees, 3 Departments, 4 Asset Categories, 10 Assets (mix of statuses including a couple already Allocated and one UnderMaintenance), 3 Bookings (including one that would conflict if a naive request is retried, to demo overlap rejection live), 2 Maintenance Requests in different states.
+Also review this main.py and list any CORS, error-handling, or startup issues that would break a live demo, and give me the fixes.

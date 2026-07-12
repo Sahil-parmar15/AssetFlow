@@ -71,21 +71,8 @@ export default function LoginScreen() {
       }}>
         {/* Title */}
         <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
-          <div style={{
-            width: '48px',
-            height: '48px',
-            borderRadius: '12px',
-            background: 'linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%)',
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'white',
-            fontWeight: 'bold',
-            fontSize: '24px',
-            marginBottom: '1rem',
-            boxShadow: '0 8px 24px rgba(139, 92, 246, 0.4)'
-          }}>
-            A
+          <div style={{ display: 'inline-flex', marginBottom: '1rem' }}>
+            <Logo size={48} />
           </div>
           <h2 style={{ fontSize: '1.75rem', fontFamily: 'var(--font-display)', marginBottom: '0.25rem' }}>
             {isLogin ? 'Welcome Back' : 'Create ERP Account'}

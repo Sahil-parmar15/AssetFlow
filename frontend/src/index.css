@@ -329,3 +329,7 @@ h1 {
   .grid-cols-2 { grid-template-columns: 1fr; }
   .main-content { padding: 1.5rem; }
 }
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

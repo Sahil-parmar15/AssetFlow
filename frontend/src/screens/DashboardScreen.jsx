@@ -20,17 +20,18 @@ export default function DashboardScreen({ setActiveScreen, setQuickAction }) {
     transfers, 
     allocations, 
     users, 
-    currentUser 
+    currentUser,
+    kpis: backendKpis,
   } = useContext(AppContext);
 
-  // Compute KPIs
-  const availableAssetsCount = assets.filter(a => a.status === 'Available').length;
-  const allocatedAssetsCount = assets.filter(a => a.status === 'Allocated').length;
-  const maintenanceCount = maintenance.filter(m => m.status === 'Approved' || m.status === 'In Progress' || m.status === 'Pending').length;
-  const activeBookingsCount = bookings.filter(b => b.status === 'Upcoming' || b.status === 'Ongoing').length;
-  const pendingTransfersCount = transfers.filter(t => t.status === 'Pending').length;
+  // Use backend KPIs if available, otherwise compute locally
+  const availableAssetsCount = backendKpis?.assets_available ?? assets.filter(a => a.status === 'Available').length;
+  const allocatedAssetsCount = backendKpis?.assets_allocated ?? assets.filter(a => a.status === 'Allocated').length;
+  const maintenanceCount = backendKpis?.maintenance_today ?? maintenance.filter(m => m.status === 'Approved' || m.status === 'In Progress' || m.status === 'Pending').length;
+  const activeBookingsCount = backendKpis?.active_bookings ?? bookings.filter(b => b.status === 'Upcoming' || b.status === 'Ongoing').length;
+  const pendingTransfersCount = backendKpis?.pending_transfers ?? transfers.filter(t => t.status === 'Requested' || t.status === 'Pending').length;
   
-  // Upcoming Returns and Overdue calculations
+  // Upcoming Returns and Overdue calculations (always from local allocations for detail)
   const todayStr = new Date().toISOString().split('T')[0];
   const activeAllocations = allocations.filter(a => a.status === 'Active' && a.expectedReturnDate);
   
@@ -52,7 +53,7 @@ export default function DashboardScreen({ setActiveScreen, setQuickAction }) {
     { label: 'Maintenance Today', value: maintenanceCount, icon: Wrench, color: 'var(--status-maintenance)', bg: 'var(--status-maintenance-bg)' },
     { label: 'Active Bookings', value: activeBookingsCount, icon: Calendar, color: 'var(--status-reserved)', bg: 'var(--status-reserved-bg)' },
     { label: 'Pending Transfers', value: pendingTransfersCount, icon: RefreshCw, color: '#a855f7', bg: 'rgba(168, 85, 247, 0.12)' },
-    { label: 'Upcoming Returns', value: upcomingAllocations.length, icon: Clock, color: '#38bdf8', bg: 'rgba(56, 189, 248, 0.12)' }
+    { label: 'Upcoming Returns', value: backendKpis?.upcoming_returns ?? upcomingAllocations.length, icon: Clock, color: '#38bdf8', bg: 'rgba(56, 189, 248, 0.12)' }
   ];
 
   const triggerQuickAction = (screenId, actionType = null) => {
